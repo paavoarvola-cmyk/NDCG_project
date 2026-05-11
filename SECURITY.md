@@ -6,6 +6,7 @@ This repository uses secure defaults for API key handling.
 
 1. Copy `.env.example` to `.env`.
 2. Set real credentials in `.env` only (for example: `OPENAI_API_KEY`, `SCOPUS_API_KEY`, `OPENALEX_API_KEY`).
+2. Set real credentials in `.env` only.
 3. Never commit `.env`.
 
 ```bash
