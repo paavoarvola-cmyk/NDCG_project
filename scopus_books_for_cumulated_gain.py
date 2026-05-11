@@ -85,6 +85,8 @@ def fetch_all_books(api_key: str, query: str, max_results: int = 5000, delay_s: 
 
         payload = response.json()
         entries = _extract_entries(payload)
+        search_results = payload.get("search-results", {})
+        entries = search_results.get("entry", [])
 
         if not entries:
             break
