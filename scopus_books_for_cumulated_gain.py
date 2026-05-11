@@ -42,6 +42,10 @@ def build_query(reference_title: str) -> str:
     return f'REF("{reference_title}") AND DOCTYPE(bk)'
 
 
+def _extract_entries(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    return payload.get("search-results", {}).get("entry", [])
+
+
 def fetch_all_books(api_key: str, query: str, max_results: int = 5000, delay_s: float = 0.2) -> list[dict[str, Any]]:
     headers = {
         "X-ELS-APIKey": api_key,
@@ -52,6 +56,8 @@ def fetch_all_books(api_key: str, query: str, max_results: int = 5000, delay_s: 
     start = 0
     count = 25  # Scopus API page size commonly capped around 25 for this endpoint.
 
+    unauthorized_view_warned = False
+
     while True:
         params = {
             "query": query,
@@ -61,12 +67,24 @@ def fetch_all_books(api_key: str, query: str, max_results: int = 5000, delay_s: 
         }
         response = requests.get(SCOPUS_SEARCH_URL, headers=headers, params=params, timeout=60)
 
+        # Some API keys do not have access to COMPLETE view.
+        if response.status_code == 401 and '"AUTHORIZATION_ERROR"' in response.text and params.get("view") == "COMPLETE":
+            params.pop("view", None)
+            response = requests.get(SCOPUS_SEARCH_URL, headers=headers, params=params, timeout=60)
+            if not unauthorized_view_warned:
+                print(
+                    "Warning: API key is not authorized for view=COMPLETE; falling back to default view.",
+                    file=sys.stderr,
+                )
+                unauthorized_view_warned = True
+
         if response.status_code != 200:
             raise RuntimeError(
                 f"Scopus API request failed: HTTP {response.status_code}\n{response.text[:1000]}"
             )
 
         payload = response.json()
+        entries = _extract_entries(payload)
         search_results = payload.get("search-results", {})
         entries = search_results.get("entry", [])
 
